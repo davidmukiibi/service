@@ -58,7 +58,13 @@ func main() {
 			WriteTimeout    time.Duration `default:"5s" envconfig:"WRITE_TIMEOUT"`
 			ShutdownTimeout time.Duration `default:"5s" envconfig:"SHUTDOWN_TIMEOUT"`
 		}
-		DB    database.Config
+		DB struct {
+			User       string `default:"postgres"`
+			Password   string `default:"postgres" json:"-"` // Prevent the marshalling of secrets.
+			Host       string `default:"localhost"`
+			Name       string `default:"postgres"`
+			DisableTLS bool   `default:"false" split_words:"true"`
+		}
 		Trace struct {
 			Host         string        `default:"http://tracer:3002/v1/publish" envconfig:"HOST"`
 			BatchSize    int           `default:"1000" envconfig:"BATCH_SIZE"`
@@ -124,7 +130,13 @@ func main() {
 	// Start Database
 
 	log.Println("main : Started : Initialize Database")
-	db, err := database.Open(cfg.DB)
+	db, err := database.Open(database.Config{
+		User:       cfg.DB.User,
+		Password:   cfg.DB.Password,
+		Host:       cfg.DB.Host,
+		Name:       cfg.DB.Name,
+		DisableTLS: cfg.DB.DisableTLS,
+	})
 	if err != nil {
 		log.Fatalf("main : Register DB : %v", err)
 	}
