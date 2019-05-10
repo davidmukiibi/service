@@ -16,7 +16,7 @@ import (
 
 	"github.com/ardanlabs/service/cmd/sales-api/handlers"
 	"github.com/ardanlabs/service/internal/platform/auth"
-	"github.com/ardanlabs/service/internal/platform/db"
+	"github.com/ardanlabs/service/internal/platform/database"
 	"github.com/ardanlabs/service/internal/platform/flag"
 	itrace "github.com/ardanlabs/service/internal/platform/trace"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -58,10 +58,7 @@ func main() {
 			WriteTimeout    time.Duration `default:"5s" envconfig:"WRITE_TIMEOUT"`
 			ShutdownTimeout time.Duration `default:"5s" envconfig:"SHUTDOWN_TIMEOUT"`
 		}
-		DB struct {
-			DialTimeout time.Duration `default:"5s" envconfig:"DIAL_TIMEOUT"`
-			Host        string        `default:"mongo:27017/gotraining" envconfig:"HOST"`
-		}
+		DB    database.Config
 		Trace struct {
 			Host         string        `default:"http://tracer:3002/v1/publish" envconfig:"HOST"`
 			BatchSize    int           `default:"1000" envconfig:"BATCH_SIZE"`
@@ -124,14 +121,14 @@ func main() {
 	}
 
 	// =========================================================================
-	// Start Mongo
+	// Start Database
 
-	log.Println("main : Started : Initialize Mongo")
-	masterDB, err := db.New(cfg.DB.Host, cfg.DB.DialTimeout)
+	log.Println("main : Started : Initialize Database")
+	db, err := database.Open(cfg.DB)
 	if err != nil {
 		log.Fatalf("main : Register DB : %v", err)
 	}
-	defer masterDB.Close()
+	defer db.Close()
 
 	// =========================================================================
 	// Start Tracing Support
@@ -179,7 +176,7 @@ func main() {
 
 	api := http.Server{
 		Addr:           cfg.Web.APIHost,
-		Handler:        handlers.API(shutdown, log, masterDB, authenticator),
+		Handler:        handlers.API(shutdown, log, db, authenticator),
 		ReadTimeout:    cfg.Web.ReadTimeout,
 		WriteTimeout:   cfg.Web.WriteTimeout,
 		MaxHeaderBytes: 1 << 20,
